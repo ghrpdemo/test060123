@@ -1,6 +1,9 @@
 ## Step 1 api using flask
 tested with locally curl and works
+requirements.txt has the modules
 ```
+python3 flaskapi.py
+
 curl -v -X GET http://localhost:5000/users
 
 curl -v -X GET http://localhost:5000/users/1
