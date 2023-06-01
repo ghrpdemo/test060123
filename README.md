@@ -14,7 +14,9 @@ curl -v -X POST http://localhost:5000/users curl -v -X POST http://localhost:500
 run make services to start local postgres for the python app
 this will import the csv and create db and table
 ```
- "make services"
+ make services
+ make services-down
+ make build
 ```
 ## Step3 kubernetes manifests
 im using kustomize here, it was faster to handle transforms/overrides for dev/stag/prod
