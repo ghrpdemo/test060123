@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: environment-configurations
+data:
+  db-init.sh: |-
+    {
+      HOSTPARAMS="-U postgres -h $DATABASE_URL -d postgres -p 26257 "
+      SQL="psql $HOSTPARAMS"
+      while true
+          do
+              rt=$($SQL --command "SELECT 1;")
+              if [ $? -eq 0 ]; then
+                  echo "db is UP"
+                  break
+              fi
+               echo "db is not yet reachable, sleep for 1s before retry"
+              sleep 1
+          done
+      
+          echo "Creating $DATABASE_NAME database ..."
+          $SQL -c "CREATE DATABASE $DATABASE_NAME;" \
+              -c "CREATE USER $DATABASE_USER WITH PASSWORD $DATABASE_PASSWORD;" \
+              -c "GRANT ALL PRIVILEGES ON DATABASE $DATABASE_NAME TO $DATABASE_USER;" \
+              -c "GRANT USAGE ON SCHEMA public TO $DATABASE_USER;" \
+              -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DATABASE_USER;" \
+              -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DATABASE_USER;" \
+          echo "DB has been created"
+      
+      $SQL -c "\connect $DATABASE_NAME;" \
+        -c "CREATE TABLE users(id SERIAL, name VARCHAR(50), PRIMARY KEY (id));" \
+      	-c "\copy users(id, name) FROM '/scripts/users.csv/users.csv' WITH CSV HEADER" \
+        -c "SELECT setval(pg_get_serial_sequence('users', 'id'), coalesce(max(id)+1, 1), false) FROM users;"\
+        -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DATABASE_USER;" \
+        -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DATABASE_USER;" 
+      echo "CSV has been imported"    
+    }
+  users.csv: |-
+    {
+      id,name
+      1,Foo Barrington
+      2,Jane Doerty
+      3,John Douglas
+      4,Penny Merryweather
+      5,Jonathan Snowly
+      6,Jeff Bezo    
+    }
+  postgresql.database.flaskapi.url: postgresql
+  postgresql.database.flaskapi.port: "5432"
+  postgresql.database.flaskapi.username: api_user
+  postgresql.database.flaskapi.name: api

@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaskapi
+  labels:
+    app.kubernetes.io/name: flaskapi
+    app.kubernetes.io/instance: flaskapi
+    app.kubernetes.io/component: flaskapi
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flaskapi
+      app.kubernetes.io/instance: flaskapi
+      app.kubernetes.io/component: flaskapi
+      version: v1
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: flaskapi
+        app.kubernetes.io/instance: flaskapi
+        app.kubernetes.io/component: flaskapi
+        version: v1
+    spec:
+      imagePullSecrets:
+        - name: docker-reg-lenderos
+      serviceAccountName: flaskapi
+      initContainers:
+        - command:
+          - /bin/sh
+          - -c
+          - |
+            . /init/db-init.sh
+          env:
+          - name: PGPASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: postgres-password
+                name: postgresql
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: postgresql-password
+                name: flaskapi-postgresql
+          - name: DATABASE_URL
+            valueFrom:
+              configMapKeyRef:
+                key: postgres.database.flaskapi.url
+                name: environment-configurations
+          - name: DATABASE_PORT
+            valueFrom:
+              configMapKeyRef:
+                key: postgres.database.flaskapi.port
+                name: environment-configurations
+          - name: DATABASE_NAME
+            valueFrom:
+              configMapKeyRef:
+                key: postgres.database.flaskapi.name
+                name: environment-configurations
+          image: docker.io/bitnami/postgresql:12
+          imagePullPolicy: IfNotPresent
+          name: postgresql-init
+          volumeMounts:
+          - mountPath: /init
+            name: environment-configurations
+      containers:
+        - name: flaskapi
+          image: registry.lenderos.com/flaskapi
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: DATABASE_USER
+              valueFrom:
+                configMapKeyRef:
+                  key: postgresql.database.flaskapi.username
+                  name: environment-configurations
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: postgresql-password
+                  name: flaskapi-postgresql
+            - name: DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: postgres.database.flaskapi.url
+                  name: environment-configurations
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: postgres.database.flaskapi.port
+                  name: environment-configurations
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: postgres.database.flaskapi.name
+                  name: environment-configurations
+          ports:
+            - name: http
+              containerPort: 5000
+          livenessProbe:
+            httpGet:
+              port: http
+              path : /liveness
+            failureThreshold: 10
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              port: http
+              path : /readiness
+            failureThreshold: 10
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1Gi
+            requests:
+              cpu: 250m
+              memory: 500Mi
+      volumes:
+        - configMap:
+            name: environment-configurations
+          name: environment-configurations

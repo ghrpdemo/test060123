@@ -1,0 +1,27 @@
+version: '3'
+services:
+  api-db:
+    image: docker.io/bitnami/postgresql:12
+    volumes:
+      - ../../../.volumes/postgresql/data:/bitnami/postgresql
+    environment:
+      - POSTGRESQL_PASSWORD=
+      - ALLOW_EMPTY_PASSWORD=yes
+      - POSTGRESQL_PORT_NUMBER=26257
+    ports:
+      - "26257:26257"
+    networks:
+      - my-network
+    expose:
+      - 26257
+  db-init:
+    image: docker.io/bitnami/postgresql:12
+    volumes:
+      - ./scripts:/scripts
+      - ./scripts/setup_db_postgres.sh:/setup_db_postgres.sh
+    entrypoint: '/bin/bash'
+    command: /setup_db_postgres.sh
+    networks:
+      - my-network
+networks:
+  my-network:
